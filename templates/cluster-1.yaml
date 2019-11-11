@@ -1,0 +1,16 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: "${cluster-name}"
+  region: "${region}"
+
+nodeGroups:
+
+  %{ for ng in nodegroups }
+  - name: ${ng.name}
+    instanceType: ${ng.instanceType}
+     desiredCapacity: ${ng.desiredCapacity}
+     ssh:
+       publicKeyPath: ${ng.publicKeyPath}
+  %{ endfor }
