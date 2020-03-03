@@ -7,15 +7,20 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: "${var.clustername}"
-  region: "${var.region}"
+  name: ${var.clustername}
+  region: ${var.region}
+
+cloudWatch:
+    clusterLogging:
+        # enable specific types of cluster control plane logs
+        enableTypes: ["*"]
 
 vpc:
   clusterEndpoints:
-    publicAccess:  "${var.publicEndpoint}"
-    privateAccess: "${var.privateEndpoint}"
-  id: "${var.vpc_id}""  # (optional, must match VPC ID used for each subnet below)
-  cidr: "${var.vpc_cidr}"       # (optional, must match CIDR used by the given VPC)
+    publicAccess:  ${var.publicEndpoint}
+    privateAccess: ${var.privateEndpoint}
+  id: ${var.vpc_id}
+  cidr: ${var.vpc_cidr}
   subnets:
   %{ if length(var.private_subnets)>0 }
     private:
@@ -40,11 +45,18 @@ nodeGroups:
   %{ for ng in var.nodegroups }
   - name: ${ng.name}
     instanceType: ${ng.instanceType}
-     desiredCapacity: ${ng.desiredCapacity}
-     ssh:
-       publicKeyPath: ${ng.publicKeyPath}
-     labels: { ${ng.labels} }
-     privateNetworking: ${ng.privateNetworking}
+    desiredCapacity: ${ng.desiredCapacity}
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        ebs: true
+        efs: true
+        albIngress: true
+        cloudWatch: true
+    ssh:
+     publicKeyPath: ${ng.publicKeyPath}
+    labels: { ${ng.labels} }
+    privateNetworking: ${ng.privateNetworking}
   %{ endfor }
 
     EOF
@@ -55,6 +67,13 @@ nodeGroups:
     # }
 }
 
+resource "local_file" "cluster-yaml" {
+  content     = "${data.template_file.cluster-config-1.rendered}"
+  filename = "cluster.yaml"
+  provisioner "local-exec" {
+    command = "eksctl create cluster -f cluster.yaml "
+  }
+}
 
 output  "cluster_yaml" {
   value = data.template_file.cluster-config-1.rendered
